@@ -1,0 +1,41 @@
+{% extends 'mailings/base.html' %}
+
+{% block title %} - Главная{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">📊 Статистика сервиса</h1>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ total_mailings }}</h2>
+                <p class="mb-0">Всего рассылок</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ active_mailings }}</h2>
+                <p class="mb-0">Активных рассылок</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ unique_recipients }}</h2>
+                <p class="mb-0">Уникальных получателей</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'mailings:mailing_create' %}" class="btn btn-primary">➕ Создать рассылку</a>
+    <a href="{% url 'mailings:recipient_create' %}" class="btn btn-outline-primary">👤 Добавить получателя</a>
+</div>
+{% endblock %}
