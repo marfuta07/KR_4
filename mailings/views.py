@@ -6,6 +6,9 @@ from django.contrib import messages
 from django.utils import timezone
 from mailings.models import Recipient, Message, Mailing, MailingAttempt
 from mailings.forms import RecipientForm, MessageForm, MailingForm
+from django.shortcuts import redirect, get_object_or_404
+from django.views import View
+from mailings.services import send_mailing
 
 
 # ========== CRUD для Recipient ==========
@@ -204,4 +207,21 @@ class HomeView(ListView):
         context['unique_recipients'] = Recipient.objects.count()
 
         return context
-    
+
+class MailingSendView(View):
+    """Запуск рассылки вручную"""
+
+    def post(self, request, pk):
+        mailing = get_object_or_404(Mailing, pk=pk)
+
+        result = send_mailing(mailing.pk)
+
+        if result['error']:
+            messages.error(request, f'❌ {result["error"]}')
+        else:
+            messages.success(
+                request,
+                f'✅ Рассылка запущена! Успешно: {result["success"]}, Неуспешно: {result["failed"]}'
+            )
+
+        return redirect('mailings:mailing_detail', pk=pk)
