@@ -25,7 +25,8 @@ def send_mailing(mailing_id):
         return {
             'success': 0,
             'failed': 0,
-            'error': f'Отправка невозможна. Рассылка доступна с {mailing.start_time:%d.%m.%Y %H:%M} до {mailing.end_time:%d.%m.%Y %H:%M}'
+            'error': f'Отправка невозможна. Рассылка доступна с '
+                     f'{mailing.start_time:%d.%m.%Y %H:%M} до {mailing.end_time:%d.%m.%Y %H:%M}'
         }
 
     # Получаем получателей
@@ -35,6 +36,7 @@ def send_mailing(mailing_id):
 
     success_count = 0
     failed_count = 0
+    attempts_to_create = []   # ← batch-список
 
     # Отправляем каждому получателю
     for recipient in recipients:
@@ -46,21 +48,22 @@ def send_mailing(mailing_id):
                 recipient_list=[recipient.email],
                 fail_silently=False,
             )
-            # Успешная попытка
-            MailingAttempt.objects.create(
+            attempts_to_create.append(MailingAttempt(
                 status=MailingAttempt.STATUS_SUCCESS,
                 server_response='OK',
                 mailing=mailing,
-            )
+            ))
             success_count += 1
         except Exception as e:
-            # Неуспешная попытка
-            MailingAttempt.objects.create(
+            attempts_to_create.append(MailingAttempt(
                 status=MailingAttempt.STATUS_FAILED,
                 server_response=str(e),
                 mailing=mailing,
-            )
+            ))
             failed_count += 1
+
+    # ← BATCH-создание одним запросом
+    MailingAttempt.objects.bulk_create(attempts_to_create)
 
     return {
         'success': success_count,
