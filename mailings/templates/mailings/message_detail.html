@@ -1,0 +1,24 @@
+{% extends 'mailings/base.html' %}
+
+{% block title %} - {{ message.subject }}{% endblock %}
+
+{% block content %}
+<h1>✉️ {{ message.subject }}</h1>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <p><strong>Тема:</strong> {{ message.subject }}</p>
+        <hr>
+        <p><strong>Тело письма:</strong></p>
+        <div class="border p-3 bg-light rounded">
+            {{ message.body|linebreaks }}
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'mailings:message_update' message.pk %}" class="btn btn-warning">✏️ Редактировать</a>
+    <a href="{% url 'mailings:message_delete' message.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+    <a href="{% url 'mailings:message_list' %}" class="btn btn-outline-secondary">← К списку</a>
+</div>
+{% endblock %}
