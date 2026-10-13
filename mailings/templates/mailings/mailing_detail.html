@@ -1,0 +1,40 @@
+{% extends 'mailings/base.html' %}
+
+{% block title %} - Рассылка #{{ mailing.pk }}{% endblock %}
+
+{% block content %}
+<h1>📤 Рассылка #{{ mailing.pk }}</h1>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <p><strong>Сообщение:</strong> {{ mailing.message.subject }}</p>
+        <p><strong>Начало:</strong> {{ mailing.start_time|date:"d.m.Y H:i" }}</p>
+        <p><strong>Окончание:</strong> {{ mailing.end_time|date:"d.m.Y H:i" }}</p>
+        <p>
+            <strong>Статус:</strong>
+            {% if mailing.status == 'Создана' %}
+                <span class="badge bg-secondary">{{ mailing.status }}</span>
+            {% elif mailing.status == 'Запущена' %}
+                <span class="badge bg-success">{{ mailing.status }}</span>
+            {% else %}
+                <span class="badge bg-danger">{{ mailing.status }}</span>
+            {% endif %}
+        </p>
+        <hr>
+        <p><strong>Получатели ({{ mailing.recipients.count }}):</strong></p>
+        <ul>
+            {% for recipient in mailing.recipients.all %}
+                <li>{{ recipient.full_name }} — {{ recipient.email }}</li>
+            {% empty %}
+                <li class="text-muted">Получателей нет</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'mailings:mailing_update' mailing.pk %}" class="btn btn-warning">✏️ Редактировать</a>
+    <a href="{% url 'mailings:mailing_delete' mailing.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+    <a href="{% url 'mailings:mailing_list' %}" class="btn btn-outline-secondary">← К списку</a>
+</div>
+{% endblock %}
