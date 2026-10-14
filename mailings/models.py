@@ -1,23 +1,21 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.conf import settings
 
 
 class Recipient(models.Model):
-    """Получатель рассылки (клиент)"""
+    email = models.EmailField(unique=True, verbose_name='Email')
+    full_name = models.CharField(max_length=200, verbose_name='Ф.И.О.')
+    comment = models.TextField(blank=True, null=True, verbose_name='Комментарий')
 
-    email = models.EmailField(
-        unique=True,
-        verbose_name='Email'
-    )
-    full_name = models.CharField(
-        max_length=200,
-        verbose_name='Ф.И.О.'
-    )
-    comment = models.TextField(
-        blank=True,
+    owner = models.ForeignKey(                      # ← НОВОЕ ПОЛЕ
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='recipients',
+        verbose_name='Владелец',
         null=True,
-        verbose_name='Комментарий'
+        blank=True,
     )
 
     class Meta:
@@ -30,14 +28,16 @@ class Recipient(models.Model):
 
 
 class Message(models.Model):
-    """Сообщение для рассылки"""
+    subject = models.CharField(max_length=200, verbose_name='Тема письма')
+    body = models.TextField(verbose_name='Тело письма')
 
-    subject = models.CharField(
-        max_length=200,
-        verbose_name='Тема письма'
-    )
-    body = models.TextField(
-        verbose_name='Тело письма'
+    owner = models.ForeignKey(                      # ← НОВОЕ ПОЛЕ
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        verbose_name='Владелец',
+        null=True,
+        blank=True,
     )
 
     class Meta:
@@ -86,6 +86,20 @@ class Mailing(models.Model):
         verbose_name='Получатели'
     )
 
+    owner = models.ForeignKey(                      # ← ДОБАВЛЕНО
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='mailings',
+        verbose_name='Владелец',
+        null=True,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(                # ← ДОБАВЛЕНО
+        default=True,
+        verbose_name='Активна',
+    )
+
     class Meta:
         verbose_name = 'Рассылка'
         verbose_name_plural = 'Рассылки'
@@ -110,7 +124,7 @@ class Mailing(models.Model):
                 })
 
     def update_status(self):
-        """Динамически обновляет статус рассылки в зависимости от текущего времени"""
+        """Динамически обновляет статус рассылки"""
         now = timezone.now()
         new_status = self.status
 
