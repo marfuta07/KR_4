@@ -8,7 +8,13 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 from users.forms import UserRegisterForm, UserLoginForm
-
+from django.contrib.auth.models import User
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.views.generic import ListView
+from django.views import View
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 
 class RegisterView(CreateView):
     """Регистрация пользователя"""
@@ -57,3 +63,49 @@ class UserLoginView(LoginView):
 class UserLogoutView(LogoutView):
     """Выход пользователя"""
     next_page = reverse_lazy('mailings:home')
+
+class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Список пользователей (только для менеджеров)"""
+    model = User
+    template_name = 'users/user_list.html'
+    context_object_name = 'users'
+    login_url = reverse_lazy('users:login')
+
+    def test_func(self):
+        """Только менеджеры могут видеть список пользователей"""
+        return self.request.user.groups.filter(name='Менеджеры').exists()
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied('Доступ только для менеджеров!')
+        return super().handle_no_permission()
+
+
+class UserToggleActiveView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Блокировка/разблокировка пользователя (только для менеджеров)"""
+    login_url = reverse_lazy('users:login')
+
+    def test_func(self):
+        """Только менеджеры могут блокировать"""
+        return self.request.user.groups.filter(name='Менеджеры').exists()
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied('Доступ только для менеджеров!')
+        return super().handle_no_permission()
+
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+
+        # Нельзя блокировать самого себя
+        if user == request.user:
+            messages.error(request, '❌ Нельзя заблокировать самого себя!')
+            return redirect('users:user_list')
+
+        # Переключаем is_active
+        user.is_active = not user.is_active
+        user.save()
+
+        action = 'заблокирован' if not user.is_active else 'разблокирован'
+        messages.success(request, f'✅ Пользователь {user.username} {action}!')
+        return redirect('users:user_list')

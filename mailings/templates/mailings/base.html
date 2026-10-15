@@ -30,6 +30,15 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'mailings:attempt_list' %}">📊 Попытки</a>
                 </li>
+                {% if user.groups.all|length > 0 %}
+                {% for group in user.groups.all %}
+                {% if group.name == 'Менеджеры' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'users:user_list' %}">👥 Пользователи</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
 
                 {% if user.is_authenticated %}
                     <li class="nav-item">
