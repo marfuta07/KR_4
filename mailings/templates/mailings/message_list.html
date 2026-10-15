@@ -15,6 +15,7 @@
             <th>ID</th>
             <th>Тема письма</th>
             <th>Тело (кратко)</th>
+            <th>Владелец</th>
             <th>Действия</th>
         </tr>
     </thead>
@@ -24,10 +25,13 @@
             <td>{{ message.id }}</td>
             <td>{{ message.subject }}</td>
             <td>{{ message.body|truncatechars:80 }}</td>
+            <td>{{ message.owner.username|default:"—" }}</td>
             <td>
-                <a href="{% url 'mailings:recipient_detail' recipient.pk %}" class="btn btn-sm btn-outline-primary">👁️</a>{% if recipient.owner == user %}
-                <a href="{% url 'mailings:recipient_update' recipient.pk %}" class="btn btn-sm btn-outline-warning">✏️</a>
-                <a href="{% url 'mailings:recipient_delete' recipient.pk %}" class="btn btn-sm btn-outline-danger">🗑️</a>{% endif %}
+                <a href="{% url 'mailings:message_detail' message.pk %}" class="btn btn-sm btn-outline-primary">👁️</a>
+                {% if message.owner == user %}
+                    <a href="{% url 'mailings:message_update' message.pk %}" class="btn btn-sm btn-outline-warning">✏️</a>
+                    <a href="{% url 'mailings:message_delete' message.pk %}" class="btn btn-sm btn-outline-danger">🗑️</a>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}

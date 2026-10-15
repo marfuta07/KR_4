@@ -3,14 +3,25 @@
 {% block title %} - Главная{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">📊 Статистика сервиса</h1>
+<h1 class="mb-4">
+    📊 {% if is_manager %}Общая статистика{% else %}Моя статистика{% endif %}
+</h1>
 
+{% if is_manager %}
+    <div class="alert alert-info">
+        Вы вошли как <strong>менеджер</strong>. Показана общая статистика по всем пользователям.
+    </div>
+{% endif %}
+
+{# Основные показатели #}
 <div class="row">
     <div class="col-md-4 mb-4">
         <div class="card text-white bg-primary h-100">
             <div class="card-body text-center">
                 <h2 class="display-4">{{ total_mailings }}</h2>
-                <p class="mb-0">Всего рассылок</p>
+                <p class="mb-0">
+                    {% if is_manager %}Всего рассылок{% else %}Моих рассылок{% endif %}
+                </p>
             </div>
         </div>
     </div>
@@ -28,12 +39,47 @@
         <div class="card text-white bg-info h-100">
             <div class="card-body text-center">
                 <h2 class="display-4">{{ unique_recipients }}</h2>
-                <p class="mb-0">Уникальных получателей</p>
+                <p class="mb-0">
+                    {% if is_manager %}Уникальных получателей{% else %}Моих получателей{% endif %}
+                </p>
             </div>
         </div>
     </div>
 </div>
 
+{# Статистика по попыткам #}
+<h3 class="mt-4 mb-3">📈 Статистика по попыткам</h3>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card text-white bg-secondary h-100">
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ total_attempts }}</h2>
+                <p class="mb-0">Всего попыток</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ successful_attempts }}</h2>
+                <p class="mb-0">✅ Успешных</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card text-white bg-danger h-100">
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ failed_attempts }}</h2>
+                <p class="mb-0">❌ Неуспешных</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Кнопки #}
 <div class="mt-4">
     <a href="{% url 'mailings:mailing_create' %}" class="btn btn-primary">➕ Создать рассылку</a>
     <a href="{% url 'mailings:recipient_create' %}" class="btn btn-outline-primary">👤 Добавить получателя</a>

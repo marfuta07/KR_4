@@ -227,19 +227,29 @@ class MailingDeleteView(LoginRequiredMixin, OwnerRequiredMixin, DeleteView):
 
 # ========== MailingAttempt (только просмотр) ==========
 
-class MailingAttemptListView(ListView):
-    """Список попыток рассылок"""
+class MailingAttemptListView(LoginRequiredMixin, ListView):
+    """Список попыток рассылок (только свои, для менеджера — все)"""
     model = MailingAttempt
     template_name = 'mailings/mailingattempt_list.html'
     context_object_name = 'attempts'
+    login_url = reverse_lazy('users:login')
 
+    def get_queryset(self):
+        """Фильтрация по owner через mailing__owner"""
+        queryset = MailingAttempt.objects.all()
+
+        # Менеджер видит всё
+        if self.request.user.groups.filter(name='Менеджеры').exists():
+            return queryset
+
+        # Обычный пользователь — только свои (через mailing.owner)
+        return queryset.filter(mailing__owner=self.request.user)
 
 class MailingAttemptDetailView(DetailView):
     """Детали попытки рассылки"""
     model = MailingAttempt
     template_name = 'mailings/mailingattempt_detail.html'
     context_object_name = 'attempt'
-
 
 # ========== Главная страница ==========
 
@@ -252,14 +262,45 @@ class HomeView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         now = timezone.now()
+        user = self.request.user
 
-        context['total_mailings'] = Mailing.objects.count()
-        context['active_mailings'] = Mailing.objects.filter(
+        # Если пользователь не авторизован — показываем общую статистику
+        if not user.is_authenticated:
+            is_manager = False
+            mailings = Mailing.objects.all()
+            attempts = MailingAttempt.objects.all()
+            recipients = Recipient.objects.all()
+        else:
+            # Менеджер видит общую статистику
+            is_manager = user.groups.filter(name='Менеджеры').exists()
+
+            if is_manager:
+                mailings = Mailing.objects.all()
+                attempts = MailingAttempt.objects.all()
+                recipients = Recipient.objects.all()
+            else:
+                mailings = Mailing.objects.filter(owner=user)
+                attempts = MailingAttempt.objects.filter(mailing__owner=user)
+                recipients = Recipient.objects.filter(owner=user)
+
+        context['total_mailings'] = mailings.count()
+        context['active_mailings'] = mailings.filter(
             start_time__lte=now,
             end_time__gte=now,
-            status=Mailing.STATUS_STARTED
+            status=Mailing.STATUS_STARTED,
+            is_active=True,
         ).count()
-        context['unique_recipients'] = Recipient.objects.count()
+        context['unique_recipients'] = recipients.count()
+
+        context['successful_attempts'] = attempts.filter(
+            status=MailingAttempt.STATUS_SUCCESS
+        ).count()
+        context['failed_attempts'] = attempts.filter(
+            status=MailingAttempt.STATUS_FAILED
+        ).count()
+        context['total_attempts'] = attempts.count()
+
+        context['is_manager'] = is_manager
 
         return context
 
