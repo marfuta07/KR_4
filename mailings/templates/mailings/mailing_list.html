@@ -37,9 +37,9 @@
             </td>
             <td>{{ mailing.message.subject|truncatechars:40 }}</td>
             <td>
-                <a href="{% url 'mailings:mailing_detail' mailing.pk %}" class="btn btn-sm btn-outline-primary">👁️</a>
-                <a href="{% url 'mailings:mailing_update' mailing.pk %}" class="btn btn-sm btn-outline-warning">✏️</a>
-                <a href="{% url 'mailings:mailing_delete' mailing.pk %}" class="btn btn-sm btn-outline-danger">🗑️</a>
+                <a href="{% url 'mailings:recipient_detail' recipient.pk %}" class="btn btn-sm btn-outline-primary">👁️</a>{% if recipient.owner == user %
+                <a href="{% url 'mailings:recipient_update' recipient.pk %}" class="btn btn-sm btn-outline-warning">✏️</a>
+                <a href="{% url 'mailings:recipient_delete' recipient.pk %}" class="btn btn-sm btn-outline-danger">🗑️</a>{% endif %}
             </td>
         </tr>
         {% endfor %}
