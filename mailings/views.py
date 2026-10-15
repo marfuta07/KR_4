@@ -9,15 +9,57 @@ from mailings.forms import RecipientForm, MessageForm, MailingForm
 from django.shortcuts import redirect, get_object_or_404
 from django.views import View
 from mailings.services import send_mailing
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
 
+# ========== Миксины для фильтрации по владельцу ==========
+
+class OwnerQuerysetMixin:
+    """
+    Миксин для фильтрации объектов по владельцу.
+    Обычный пользователь видит только свои объекты.
+    Менеджер видит все объекты.
+    """
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Менеджер видит всё
+        if self.request.user.groups.filter(name='Менеджеры').exists():
+            return queryset
+
+        # Обычный пользователь — только свои
+        return queryset.filter(owner=self.request.user)
+
+
+class OwnerRequiredMixin(UserPassesTestMixin):
+    """
+    Миксин для проверки прав на редактирование/удаление.
+    Обычный пользователь может редактировать только свои объекты.
+    """
+
+    def test_func(self):
+        obj = self.get_object()
+
+        # Владелец может редактировать
+        if obj.owner == self.request.user:
+            return True
+
+        return False
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied('Вы не являетесь владельцем этого объекта!')
+        return super().handle_no_permission()
 
 # ========== CRUD для Recipient ==========
 
-class RecipientListView(ListView):
-    """Список получателей"""
+class RecipientListView(LoginRequiredMixin, OwnerQuerysetMixin, ListView):
+    """Список получателей (только свои, для менеджера — все)"""
     model = Recipient
     template_name = 'mailings/recipient_list.html'
     context_object_name = 'recipients'
+    login_url = reverse_lazy('users:login')
 
 
 class RecipientDetailView(DetailView):
@@ -27,35 +69,39 @@ class RecipientDetailView(DetailView):
     context_object_name = 'recipient'
 
 
-class RecipientCreateView(CreateView):
+class RecipientCreateView(LoginRequiredMixin, CreateView):
     """Создание получателя"""
     model = Recipient
     form_class = RecipientForm
     template_name = 'mailings/recipient_form.html'
     success_url = reverse_lazy('mailings:recipient_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
+        form.instance.owner = self.request.user  # ← автозаполнение
         messages.success(self.request, 'Получатель успешно создан! ✅')
         return super().form_valid(form)
 
 
-class RecipientUpdateView(UpdateView):
-    """Редактирование получателя"""
+class RecipientUpdateView(LoginRequiredMixin, OwnerRequiredMixin, UpdateView):
+    """Редактирование получателя (только владелец)"""
     model = Recipient
     form_class = RecipientForm
     template_name = 'mailings/recipient_form.html'
     success_url = reverse_lazy('mailings:recipient_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
         messages.success(self.request, 'Получатель обновлён! ✅')
         return super().form_valid(form)
 
 
-class RecipientDeleteView(DeleteView):
-    """Удаление получателя"""
+class RecipientDeleteView(LoginRequiredMixin, OwnerRequiredMixin, DeleteView):
+    """Удаление получателя (только владелец)"""
     model = Recipient
     template_name = 'mailings/recipient_confirm_delete.html'
     success_url = reverse_lazy('mailings:recipient_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
         messages.success(self.request, 'Получатель удалён! ✅')
@@ -64,11 +110,12 @@ class RecipientDeleteView(DeleteView):
 
 # ========== CRUD для Message ==========
 
-class MessageListView(ListView):
-    """Список сообщений"""
+class MessageListView(LoginRequiredMixin, OwnerQuerysetMixin, ListView):
+    """Список сообщений (только свои, для менеджера — все)"""
     model = Message
     template_name = 'mailings/message_list.html'
     context_object_name = 'messages'
+    login_url = reverse_lazy('users:login')
 
 
 class MessageDetailView(DetailView):
@@ -78,35 +125,38 @@ class MessageDetailView(DetailView):
     context_object_name = 'message'
 
 
-class MessageCreateView(CreateView):
+class MessageCreateView(LoginRequiredMixin, CreateView):
     """Создание сообщения"""
     model = Message
     form_class = MessageForm
     template_name = 'mailings/message_form.html'
     success_url = reverse_lazy('mailings:message_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
+        form.instance.owner = self.request.user  # ← автозаполнение
         messages.success(self.request, 'Сообщение успешно создано! ✅')
         return super().form_valid(form)
 
 
-class MessageUpdateView(UpdateView):
-    """Редактирование сообщения"""
+class MessageUpdateView(LoginRequiredMixin, OwnerRequiredMixin, UpdateView):
+    """Редактирование сообщения (только владелец)"""
     model = Message
     form_class = MessageForm
     template_name = 'mailings/message_form.html'
     success_url = reverse_lazy('mailings:message_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
         messages.success(self.request, 'Сообщение обновлено! ✅')
         return super().form_valid(form)
 
-
-class MessageDeleteView(DeleteView):
-    """Удаление сообщения"""
+class MessageDeleteView(LoginRequiredMixin, OwnerRequiredMixin, DeleteView):
+    """Удаление сообщения (только владелец)"""
     model = Message
     template_name = 'mailings/message_confirm_delete.html'
     success_url = reverse_lazy('mailings:message_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
         messages.success(self.request, 'Сообщение удалено! ✅')
@@ -115,12 +165,12 @@ class MessageDeleteView(DeleteView):
 
 # ========== CRUD для Mailing ==========
 
-class MailingListView(ListView):
-    """Список рассылок"""
+class MailingListView(LoginRequiredMixin, OwnerQuerysetMixin, ListView):
+    """Список рассылок (только свои, для менеджера — все)"""
     model = Mailing
     template_name = 'mailings/mailing_list.html'
     context_object_name = 'mailings'
-
+    login_url = reverse_lazy('users:login')
 
 class MailingDetailView(DetailView):
     """Детали рассылки (с обновлением статуса)"""
@@ -135,35 +185,40 @@ class MailingDetailView(DetailView):
         return obj
 
 
-class MailingCreateView(CreateView):
+class MailingCreateView(LoginRequiredMixin, CreateView):
     """Создание рассылки"""
     model = Mailing
     form_class = MailingForm
     template_name = 'mailings/mailing_form.html'
     success_url = reverse_lazy('mailings:mailing_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
+        form.instance.owner = self.request.user  # ← автозаполнение
         messages.success(self.request, 'Рассылка успешно создана! ✅')
         return super().form_valid(form)
 
 
-class MailingUpdateView(UpdateView):
-    """Редактирование рассылки"""
+
+class MailingUpdateView(LoginRequiredMixin, OwnerRequiredMixin, UpdateView):
+    """Редактирование рассылки (только владелец)"""
     model = Mailing
     form_class = MailingForm
     template_name = 'mailings/mailing_form.html'
     success_url = reverse_lazy('mailings:mailing_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
         messages.success(self.request, 'Рассылка обновлена! ✅')
         return super().form_valid(form)
 
 
-class MailingDeleteView(DeleteView):
-    """Удаление рассылки"""
+class MailingDeleteView(LoginRequiredMixin, OwnerRequiredMixin, DeleteView):
+    """Удаление рассылки (только владелец)"""
     model = Mailing
     template_name = 'mailings/mailing_confirm_delete.html'
     success_url = reverse_lazy('mailings:mailing_list')
+    login_url = reverse_lazy('users:login')
 
     def form_valid(self, form):
         messages.success(self.request, 'Рассылка удалена! ✅')
