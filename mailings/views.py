@@ -280,3 +280,27 @@ class MailingSendView(View):
             )
 
         return redirect('mailings:mailing_detail', pk=pk)
+
+class MailingToggleActiveView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Отключение/включение рассылки (только для менеджеров)"""
+    login_url = reverse_lazy('users:login')
+
+    def test_func(self):
+        """Только менеджеры могут отключать рассылки"""
+        return self.request.user.groups.filter(name='Менеджеры').exists()
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied('Доступ только для менеджеров!')
+        return super().handle_no_permission()
+
+    def post(self, request, pk):
+        mailing = get_object_or_404(Mailing, pk=pk)
+
+        # Переключаем is_active
+        mailing.is_active = not mailing.is_active
+        mailing.save()
+
+        action = 'включена' if mailing.is_active else 'отключена'
+        messages.success(request, f'✅ Рассылка #{mailing.pk} {action}!')
+        return redirect('mailings:mailing_detail', pk=pk)

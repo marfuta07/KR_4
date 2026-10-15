@@ -19,6 +19,14 @@ def send_mailing(mailing_id):
     # Обновляем статус
     mailing.update_status()
 
+    # Проверяем, активна ли рассылка
+    if not mailing.is_active:
+        return {
+            'success': 0,
+            'failed': 0,
+            'error': 'Рассылка отключена менеджером. Отправка невозможна.'
+        }
+
     # Проверяем, разрешена ли отправка
     now = timezone.now()
     if not (mailing.start_time <= now <= mailing.end_time):

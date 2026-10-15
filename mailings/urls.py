@@ -28,6 +28,7 @@ urlpatterns = [
     path('mailings/<int:pk>/update/', views.MailingUpdateView.as_view(), name='mailing_update'),
     path('mailings/<int:pk>/delete/', views.MailingDeleteView.as_view(), name='mailing_delete'),
     path('mailings/<int:pk>/send/', views.MailingSendView.as_view(), name='mailing_send'),
+    path('mailings/<int:pk>/toggle/', views.MailingToggleActiveView.as_view(), name='mailing_toggle_active'),
     # Попытки
     path('attempts/', views.MailingAttemptListView.as_view(), name='attempt_list'),
     path('attempts/<int:pk>/', views.MailingAttemptDetailView.as_view(), name='attempt_detail'),

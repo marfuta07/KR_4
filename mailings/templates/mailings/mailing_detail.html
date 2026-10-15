@@ -21,6 +21,14 @@
                 <span class="badge bg-danger">{{ mailing.status }}</span>
             {% endif %}
         </p>
+        <p>
+            <strong>Активность:</strong>
+            {% if mailing.is_active %}
+                <span class="badge bg-success">Активна</span>
+            {% else %}
+                <span class="badge bg-danger">Отключена</span>
+            {% endif %}
+        </p>
         <hr>
         <p><strong>Получатели ({{ mailing.recipients.count }}):</strong></p>
         <ul>
@@ -35,8 +43,8 @@
 
 {# Кнопки действий #}
 <div class="mt-4">
-    {# Кнопка запуска — только если рассылка активна #}
-    {% if mailing.status == 'Запущена' %}
+    {# Кнопка запуска — только если рассылка активна и запущена #}
+    {% if mailing.status == 'Запущена' and mailing.is_active %}
         <form method="post" action="{% url 'mailings:mailing_send' mailing.pk %}" class="d-inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-success"
@@ -46,8 +54,32 @@
         </form>
     {% endif %}
 
-    <a href="{% url 'mailings:mailing_update' mailing.pk %}" class="btn btn-warning">✏️ Редактировать</a>
-    <a href="{% url 'mailings:mailing_delete' mailing.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+    {# Кнопка отключения — только для менеджеров #}
+    {% for group in user.groups.all %}
+        {% if group.name == 'Менеджеры' %}
+            <form method="post" action="{% url 'mailings:mailing_toggle_active' mailing.pk %}" class="d-inline">
+                {% csrf_token %}
+                {% if mailing.is_active %}
+                    <button type="submit" class="btn btn-outline-danger"
+                            onclick="return confirm('Отключить рассылку #{{ mailing.pk }}?')">
+                        🚫 Отключить рассылку
+                    </button>
+                {% else %}
+                    <button type="submit" class="btn btn-outline-success"
+                            onclick="return confirm('Включить рассылку #{{ mailing.pk }}?')">
+                        ✅ Включить рассылку
+                    </button>
+                {% endif %}
+            </form>
+        {% endif %}
+    {% endfor %}
+
+    {# Кнопки редактирования и удаления — только владелец #}
+    {% if mailing.owner == user %}
+        <a href="{% url 'mailings:mailing_update' mailing.pk %}" class="btn btn-warning">✏️ Редактировать</a>
+        <a href="{% url 'mailings:mailing_delete' mailing.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+    {% endif %}
+
     <a href="{% url 'mailings:mailing_list' %}" class="btn btn-outline-secondary">← К списку</a>
 </div>
 
@@ -81,4 +113,4 @@
 </table>
 {% endif %}
 
-{% endblock %}
+{% endblock %}# Ctrl+C
