@@ -11,6 +11,7 @@ from django.views import View
 from mailings.services import send_mailing
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
+from django.core.cache import cache
 
 # ========== Миксины для фильтрации по владельцу ==========
 
@@ -254,7 +255,7 @@ class MailingAttemptDetailView(DetailView):
 # ========== Главная страница ==========
 
 class HomeView(ListView):
-    """Главная страница со статистикой"""
+    """Главная страница со статистикой (с низкоуровневым кэшированием)"""
     model = Mailing
     template_name = 'mailings/home.html'
     context_object_name = 'mailings'
@@ -264,44 +265,61 @@ class HomeView(ListView):
         now = timezone.now()
         user = self.request.user
 
-        # Если пользователь не авторизован — показываем общую статистику
+        # Формируем ключ кэша
         if not user.is_authenticated:
-            is_manager = False
-            mailings = Mailing.objects.all()
-            attempts = MailingAttempt.objects.all()
-            recipients = Recipient.objects.all()
+            cache_key = 'home_stats_anonymous'
         else:
-            # Менеджер видит общую статистику
             is_manager = user.groups.filter(name='Менеджеры').exists()
-
             if is_manager:
+                cache_key = 'home_stats_manager'
+            else:
+                cache_key = f'home_stats_user_{user.pk}'
+
+        # Проверяем кэш
+        stats = cache.get(cache_key)
+
+        if stats is None:
+            # Формируем статистику
+            if not user.is_authenticated:
+                is_manager = False
                 mailings = Mailing.objects.all()
                 attempts = MailingAttempt.objects.all()
                 recipients = Recipient.objects.all()
             else:
-                mailings = Mailing.objects.filter(owner=user)
-                attempts = MailingAttempt.objects.filter(mailing__owner=user)
-                recipients = Recipient.objects.filter(owner=user)
+                is_manager = user.groups.filter(name='Менеджеры').exists()
 
-        context['total_mailings'] = mailings.count()
-        context['active_mailings'] = mailings.filter(
-            start_time__lte=now,
-            end_time__gte=now,
-            status=Mailing.STATUS_STARTED,
-            is_active=True,
-        ).count()
-        context['unique_recipients'] = recipients.count()
+                if is_manager:
+                    mailings = Mailing.objects.all()
+                    attempts = MailingAttempt.objects.all()
+                    recipients = Recipient.objects.all()
+                else:
+                    mailings = Mailing.objects.filter(owner=user)
+                    attempts = MailingAttempt.objects.filter(mailing__owner=user)
+                    recipients = Recipient.objects.filter(owner=user)
 
-        context['successful_attempts'] = attempts.filter(
-            status=MailingAttempt.STATUS_SUCCESS
-        ).count()
-        context['failed_attempts'] = attempts.filter(
-            status=MailingAttempt.STATUS_FAILED
-        ).count()
-        context['total_attempts'] = attempts.count()
+            stats = {
+                'total_mailings': mailings.count(),
+                'active_mailings': mailings.filter(
+                    start_time__lte=now,
+                    end_time__gte=now,
+                    status=Mailing.STATUS_STARTED,
+                    is_active=True,
+                ).count(),
+                'unique_recipients': recipients.count(),
+                'successful_attempts': attempts.filter(
+                    status=MailingAttempt.STATUS_SUCCESS
+                ).count(),
+                'failed_attempts': attempts.filter(
+                    status=MailingAttempt.STATUS_FAILED
+                ).count(),
+                'total_attempts': attempts.count(),
+                'is_manager': is_manager,
+            }
 
-        context['is_manager'] = is_manager
+            # Сохраняем в кэш на 5 минут
+            cache.set(cache_key, stats, 60 * 5)
 
+        context.update(stats)
         return context
 
 class MailingSendView(View):
