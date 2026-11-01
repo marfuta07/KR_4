@@ -1,0 +1,30 @@
+{% extends 'mailings/base.html' %}
+
+{% block title %} - Попытка #{{ attempt.pk }}{% endblock %}
+
+{% block content %}
+<h1>📊 Попытка #{{ attempt.pk }}</h1>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <p><strong>Дата и время:</strong> {{ attempt.attempt_time|date:"d.m.Y H:i" }}</p>
+        <p>
+            <strong>Статус:</strong>
+            {% if attempt.status == 'Успешно' %}
+                <span class="badge bg-success">{{ attempt.status }}</span>
+            {% else %}
+                <span class="badge bg-danger">{{ attempt.status }}</span>
+            {% endif %}
+        </p>
+        <p><strong>Рассылка:</strong> #{{ attempt.mailing.pk }} — {{ attempt.mailing.message.subject }}</p>
+        <p><strong>Ответ сервера:</strong></p>
+        <div class="border p-3 bg-light rounded">
+            {{ attempt.server_response|default:"—" }}
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'mailings:attempt_list' %}" class="btn btn-outline-secondary">← К списку</a>
+</div>
+{% endblock %}

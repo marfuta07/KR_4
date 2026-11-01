@@ -1,0 +1,116 @@
+{% extends 'mailings/base.html' %}
+
+{% block title %} - Рассылка #{{ mailing.pk }}{% endblock %}
+
+{% block content %}
+<h1>📤 Рассылка #{{ mailing.pk }}</h1>
+
+{# Карточка с данными рассылки #}
+<div class="card mt-4">
+    <div class="card-body">
+        <p><strong>Сообщение:</strong> {{ mailing.message.subject }}</p>
+        <p><strong>Начало:</strong> {{ mailing.start_time|date:"d.m.Y H:i" }}</p>
+        <p><strong>Окончание:</strong> {{ mailing.end_time|date:"d.m.Y H:i" }}</p>
+        <p>
+            <strong>Статус:</strong>
+            {% if mailing.status == 'Создана' %}
+                <span class="badge bg-secondary">{{ mailing.status }}</span>
+            {% elif mailing.status == 'Запущена' %}
+                <span class="badge bg-success">{{ mailing.status }}</span>
+            {% else %}
+                <span class="badge bg-danger">{{ mailing.status }}</span>
+            {% endif %}
+        </p>
+        <p>
+            <strong>Активность:</strong>
+            {% if mailing.is_active %}
+                <span class="badge bg-success">Активна</span>
+            {% else %}
+                <span class="badge bg-danger">Отключена</span>
+            {% endif %}
+        </p>
+        <hr>
+        <p><strong>Получатели ({{ mailing.recipients.count }}):</strong></p>
+        <ul>
+            {% for recipient in mailing.recipients.all %}
+                <li>{{ recipient.full_name }} — {{ recipient.email }}</li>
+            {% empty %}
+                <li class="text-muted">Получателей нет</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{# Кнопки действий #}
+<div class="mt-4">
+    {# Кнопка запуска — только если рассылка активна и запущена #}
+    {% if mailing.status == 'Запущена' and mailing.is_active %}
+        <form method="post" action="{% url 'mailings:mailing_send' mailing.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success"
+                    onclick="return confirm('Запустить рассылку?')">
+                🚀 Запустить рассылку
+            </button>
+        </form>
+    {% endif %}
+
+    {# Кнопка отключения — только для менеджеров #}
+    {% for group in user.groups.all %}
+        {% if group.name == 'Менеджеры' %}
+            <form method="post" action="{% url 'mailings:mailing_toggle_active' mailing.pk %}" class="d-inline">
+                {% csrf_token %}
+                {% if mailing.is_active %}
+                    <button type="submit" class="btn btn-outline-danger"
+                            onclick="return confirm('Отключить рассылку #{{ mailing.pk }}?')">
+                        🚫 Отключить рассылку
+                    </button>
+                {% else %}
+                    <button type="submit" class="btn btn-outline-success"
+                            onclick="return confirm('Включить рассылку #{{ mailing.pk }}?')">
+                        ✅ Включить рассылку
+                    </button>
+                {% endif %}
+            </form>
+        {% endif %}
+    {% endfor %}
+
+    {# Кнопки редактирования и удаления — только владелец #}
+    {% if mailing.owner == user %}
+        <a href="{% url 'mailings:mailing_update' mailing.pk %}" class="btn btn-warning">✏️ Редактировать</a>
+        <a href="{% url 'mailings:mailing_delete' mailing.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+    {% endif %}
+
+    <a href="{% url 'mailings:mailing_list' %}" class="btn btn-outline-secondary">← К списку</a>
+</div>
+
+{# История попыток по этой рассылке #}
+{% if mailing.attempts.all %}
+<hr class="mt-5">
+<h3>📊 История попыток</h3>
+<table class="table table-sm">
+    <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Статус</th>
+            <th>Ответ сервера</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for attempt in mailing.attempts.all %}
+        <tr>
+            <td>{{ attempt.attempt_time|date:"d.m.Y H:i" }}</td>
+            <td>
+                {% if attempt.status == 'Успешно' %}
+                    <span class="badge bg-success">{{ attempt.status }}</span>
+                {% else %}
+                    <span class="badge bg-danger">{{ attempt.status }}</span>
+                {% endif %}
+            </td>
+            <td>{{ attempt.server_response|default:"—"|truncatechars:50 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% endblock %}# Ctrl+C
